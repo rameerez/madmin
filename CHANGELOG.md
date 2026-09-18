@@ -1,5 +1,7 @@
 ### Unreleased
 
+* Fix belongs_to, has_one and polymorphic index cells raising `Madmin::MissingResource` for a target with no resource. They now go through `associated_resource_for` and render the same missing-resource notice the show partials already do, so one unresolvable row no longer 500s the whole index
+
 ### 2.6.0
 
 * Add read-only resource support. Override `readonly?` on a resource to redirect write actions back to the index and hide the New/Edit/Delete links #348
