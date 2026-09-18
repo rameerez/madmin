@@ -42,7 +42,7 @@ class MissingResourceIndexTest < ActionDispatch::IntegrationTest
 
       html = Madmin::ApplicationController.render(
         partial: "madmin/fields/#{field_type}/index",
-        locals: { field: field, record: Struct.new(:thing).new(@orphan), resource: CommentResource }
+        locals: {field: field, record: Struct.new(:thing).new(@orphan), resource: CommentResource}
       )
 
       assert_match "OrphanResource is missing", html, "#{field_type}/_index should degrade like #{field_type}/_show"
