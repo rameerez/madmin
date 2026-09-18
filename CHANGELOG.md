@@ -1,5 +1,7 @@
 ### Unreleased
 
+* `Madmin.resource_for` now falls back to the resource that declares the object's class with `model`, so a resource named differently from its model (`ArticleResource` for `Blog::Post`) resolves in association cells without a name-matching alias subclass. Name-derived and STI lookups still win; two differently-named resources declaring the same model raise `MissingResource` with both names rather than guessing
+
 ### 2.6.0
 
 * Add read-only resource support. Override `readonly?` on a resource to redirect write actions back to the index and hide the New/Edit/Delete links #348

@@ -49,4 +49,58 @@ class Madmin::Test < ActiveSupport::TestCase
   test "resource_for with STI fallback" do
     assert_equal EventResource, Madmin.resource_for(CommentEvent.new)
   end
+
+  # A model whose class name matches no resource, and which no resource declares.
+  class Nobody < ApplicationRecord
+    self.table_name = "posts"
+  end
+
+  test "resource_for falls back to the resource that declares the model" do
+    # BlogArticleResource is named for the operator, not the model; it says
+    # `model Article`, and there is no ArticleResource.
+    assert_equal BlogArticleResource, Madmin.resource_for(Article.new)
+  end
+
+  test "resource_for prefers the name-derived resource over another that merely declares the model" do
+    other = Class.new(Madmin::Resource) { model User }
+
+    with_extra_resources(other) do
+      assert_equal UserResource, Madmin.resource_for(User.new)
+    end
+  end
+
+  test "resource_for still raises when no resource matches by name or by declaration" do
+    assert_raises(Madmin::MissingResource) { Madmin.resource_for(Nobody.new) }
+  end
+
+  test "resource_for raises rather than guess when two differently-named resources declare the same model" do
+    first = Class.new(Madmin::Resource) { model Nobody }
+    second = Class.new(Madmin::Resource) { model Nobody }
+
+    with_extra_resources(first, second) do
+      error = assert_raises(Madmin::MissingResource) { Madmin.resource_for(Nobody.new) }
+      assert_match(/all declare `model Madmin::Test::Nobody`/, error.message)
+    end
+  end
+
+  test "reset_resources! forgets the declared-model index" do
+    Madmin.resource_for(Article.new)
+    assert Madmin.instance_variable_get(:@resources_by_model)
+
+    Madmin.reset_resources!
+    assert_nil Madmin.instance_variable_get(:@resources_by_model)
+  end
+
+  private
+
+  # Madmin.resources is built from files on disk, so a resource defined inside
+  # a test is invisible to it. Splice extras into the memo for the block, then
+  # reset so neither the list nor the declared-model index leaks.
+  def with_extra_resources(*extras)
+    Madmin.reset_resources!
+    Madmin.instance_variable_set(:@resources, Madmin.resources + extras)
+    yield
+  ensure
+    Madmin.reset_resources!
+  end
 end

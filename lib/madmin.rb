@@ -58,6 +58,12 @@ module Madmin
       elsif (resource_name = sti_resource_name_for(object)) && Object.const_defined?(resource_name)
         resource_name.constantize
 
+      # A resource named differently from its model (`ArticleResource` for
+      # `Blog::Post`) still says which model it is for with `model`. Honor that
+      # declaration before giving up, so association cells can link to it.
+      elsif (resource = resource_declaring(object.class))
+        resource
+
       else
         raise MissingResource, <<~MESSAGE
           `#{object.class.name}Resource` is missing.
@@ -67,6 +73,27 @@ module Madmin
               bin/rails generate madmin:resource #{object.class.name}
         MESSAGE
       end
+    end
+
+    # The one resource whose `model` is exactly +klass+, or nil. Two resources
+    # declaring the same model with neither matching its name is ambiguous, and
+    # guessing would silently link to the wrong admin page, so that raises.
+    def resource_declaring(klass)
+      candidates = resources_by_model[klass]
+      return if candidates.nil? || candidates.empty?
+      return candidates.first if candidates.one?
+
+      raise MissingResource, <<~MESSAGE
+        `#{klass.name}Resource` is missing, and #{candidates.map(&:name).join(", ")} all declare `model #{klass.name}`.
+
+        Madmin can't tell which one to link to. Either name one of them
+        `#{klass.name}Resource`, or make it a subclass of the other so only one
+        declares the model.
+      MESSAGE
+    end
+
+    def resources_by_model
+      @resources_by_model ||= resources.group_by(&:model)
     end
 
     def resource_name_for(object)
@@ -101,6 +128,7 @@ module Madmin
 
     def reset_resources!
       @resources = nil
+      @resources_by_model = nil
       menu.reset
     end
 
